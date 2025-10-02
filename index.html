@@ -35,6 +35,22 @@
       display: flex;
       gap: 20px;
     }
+    .controls {
+      margin-bottom: 15px;
+    }
+    .controls button {
+      padding: 8px 16px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      background: #ff9800;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .controls button:hover {
+      background: #e68900;
+    }
     .memory-game {
       width: 90vmin;
       max-width: 600px;
@@ -73,6 +89,9 @@
 <body>
   <div class="overlay"></div>
   <div class="game-container">
+    <div class="controls">
+      <button id="restart">Restart</button>
+    </div>
     <div class="stats">
       <span id="score">Score: 0</span>
       <span id="moves">Moves: 0</span>
@@ -93,34 +112,45 @@
     const movesEl = document.getElementById("moves");
     const timerEl = document.getElementById("timer");
     const bestEl = document.getElementById("best");
+    const restartBtn = document.getElementById("restart");
 
     const bgMusic = document.getElementById("bg-music");
     const flipSound = document.getElementById("flip-sound");
     const matchSound = document.getElementById("match-sound");
     const winSound = document.getElementById("win-sound");
 
-    let hasFlipped = false, lock = false, firstCard, secondCard;
-    let score = 0, moves = 0, time = 0, timer;
+    let hasFlipped, lock, firstCard, secondCard;
+    let score, moves, time, timer;
     let bestTime = localStorage.getItem("bestTime") || "--";
 
     bestEl.textContent = `Best: ${bestTime === "--" ? "--" : bestTime + "s"}`;
 
-    const cardsArray = [];
-    for (let i = 1; i <= 8; i++) {
-      cardsArray.push(i, i);
-    }
-    cardsArray.sort(() => 0.5 - Math.random());
+    function initGame() {
+      game.innerHTML = "";
+      clearInterval(timer);
+      [hasFlipped, lock] = [false, false];
+      [firstCard, secondCard] = [null, null];
+      score = 0; moves = 0; time = 0; timer = null;
 
-    cardsArray.forEach(num => {
-      const card = document.createElement("div");
-      card.classList.add("card");
-      card.innerHTML = `
-        <div class="card-face card-front"><img src="${num}.png"></div>
-        <div class="card-face card-back"><img src="back.png"></div>
-      `;
-      card.addEventListener("click", flipCard);
-      game.appendChild(card);
-    });
+      scoreEl.textContent = "Score: 0";
+      movesEl.textContent = "Moves: 0";
+      timerEl.textContent = "Time: 0s";
+
+      const cardsArray = [];
+      for (let i = 1; i <= 8; i++) cardsArray.push(i, i);
+      cardsArray.sort(() => 0.5 - Math.random());
+
+      cardsArray.forEach(num => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.innerHTML = `
+          <div class="card-face card-front"><img src="${num}.png"></div>
+          <div class="card-face card-back"><img src="back.png"></div>
+        `;
+        card.addEventListener("click", flipCard);
+        game.appendChild(card);
+      });
+    }
 
     function flipCard() {
       if (lock || this === firstCard) return;
@@ -150,7 +180,6 @@
     function disableCards() {
       matchSound.currentTime = 0;
       matchSound.play();
-
       score++;
       scoreEl.textContent = `Score: ${score}`;
       firstCard.removeEventListener("click", flipCard);
@@ -160,7 +189,6 @@
       if (score === 8) {
         clearInterval(timer);
         winSound.play();
-
         if (bestTime === "--" || time < bestTime) {
           bestTime = time;
           localStorage.setItem("bestTime", bestTime);
@@ -190,13 +218,16 @@
       }, 1000);
     }
 
-    // start bg music on first user click
+    restartBtn.addEventListener("click", initGame);
+
     document.addEventListener("click", () => {
       if (bgMusic.paused) {
         bgMusic.volume = 0.3;
         bgMusic.play().catch(() => {});
       }
     }, { once: true });
+
+    initGame();
   </script>
 </body>
 </html>
