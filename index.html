@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Card Game</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      background: url('bg.png') center/cover no-repeat;
+    }
+    .overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      backdrop-filter: blur(8px) brightness(0.8);
+      z-index: 0;
+    }
+    .game-container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stats {
+      color: white;
+      font-size: 18px;
+      margin-bottom: 15px;
+      display: flex;
+      gap: 20px;
+    }
+    .memory-game {
+      width: 90vmin;
+      max-width: 600px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      perspective: 1000px;
+    }
+    .card {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      transform-style: preserve-3d;
+      transition: transform 0.5s;
+      cursor: pointer;
+    }
+    .card.flip {
+      transform: rotateY(180deg);
+    }
+    .card-face {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      backface-visibility: hidden;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .card-front {
+      transform: rotateY(180deg);
+    }
+    .card-face img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay"></div>
+  <div class="game-container">
+    <div class="stats">
+      <span id="score">Score: 0</span>
+      <span id="moves">Moves: 0</span>
+      <span id="timer">Time: 0s</span>
+      <span id="best">Best: --</span>
+    </div>
+    <div class="memory-game" id="memory-game"></div>
+  </div>
+
+  <audio id="bg-music" src="bg-music.mp3" loop></audio>
+  <audio id="flip-sound" src="flip.mp3"></audio>
+  <audio id="match-sound" src="match.mp3"></audio>
+  <audio id="win-sound" src="win.mp3"></audio>
+
+  <script>
+    const game = document.getElementById("memory-game");
+    const scoreEl = document.getElementById("score");
+    const movesEl = document.getElementById("moves");
+    const timerEl = document.getElementById("timer");
+    const bestEl = document.getElementById("best");
+
+    const bgMusic = document.getElementById("bg-music");
+    const flipSound = document.getElementById("flip-sound");
+    const matchSound = document.getElementById("match-sound");
+    const winSound = document.getElementById("win-sound");
+
+    let hasFlipped = false, lock = false, firstCard, secondCard;
+    let score = 0, moves = 0, time = 0, timer;
+    let bestTime = localStorage.getItem("bestTime") || "--";
+
+    bestEl.textContent = `Best: ${bestTime === "--" ? "--" : bestTime + "s"}`;
+
+    const cardsArray = [];
+    for (let i = 1; i <= 8; i++) {
+      cardsArray.push(i, i);
+    }
+    cardsArray.sort(() => 0.5 - Math.random());
+
+    cardsArray.forEach(num => {
+      const card = document.createElement("div");
+      card.classList.add("card");
+      card.innerHTML = `
+        <div class="card-face card-front"><img src="${num}.png"></div>
+        <div class="card-face card-back"><img src="back.png"></div>
+      `;
+      card.addEventListener("click", flipCard);
+      game.appendChild(card);
+    });
+
+    function flipCard() {
+      if (lock || this === firstCard) return;
+      this.classList.add("flip");
+      flipSound.currentTime = 0;
+      flipSound.play();
+
+      if (!timer) startTimer();
+
+      if (!hasFlipped) {
+        hasFlipped = true;
+        firstCard = this;
+        return;
+      }
+
+      secondCard = this;
+      moves++;
+      movesEl.textContent = `Moves: ${moves}`;
+      checkMatch();
+    }
+
+    function checkMatch() {
+      let match = firstCard.innerHTML === secondCard.innerHTML;
+      match ? disableCards() : unflipCards();
+    }
+
+    function disableCards() {
+      matchSound.currentTime = 0;
+      matchSound.play();
+
+      score++;
+      scoreEl.textContent = `Score: ${score}`;
+      firstCard.removeEventListener("click", flipCard);
+      secondCard.removeEventListener("click", flipCard);
+      resetBoard();
+
+      if (score === 8) {
+        clearInterval(timer);
+        winSound.play();
+
+        if (bestTime === "--" || time < bestTime) {
+          bestTime = time;
+          localStorage.setItem("bestTime", bestTime);
+        }
+        bestEl.textContent = `Best: ${bestTime}s`;
+      }
+    }
+
+    function unflipCards() {
+      lock = true;
+      setTimeout(() => {
+        firstCard.classList.remove("flip");
+        secondCard.classList.remove("flip");
+        resetBoard();
+      }, 800);
+    }
+
+    function resetBoard() {
+      [hasFlipped, lock] = [false, false];
+      [firstCard, secondCard] = [null, null];
+    }
+
+    function startTimer() {
+      timer = setInterval(() => {
+        time++;
+        timerEl.textContent = `Time: ${time}s`;
+      }, 1000);
+    }
+
+    // start bg music on first user click
+    document.addEventListener("click", () => {
+      if (bgMusic.paused) {
+        bgMusic.volume = 0.3;
+        bgMusic.play().catch(() => {});
+      }
+    }, { once: true });
+  </script>
+</body>
+</html>
